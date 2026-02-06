@@ -4,6 +4,9 @@ FROM python:3.9-slim
 # 设置容器内的工作目录
 WORKDIR /app
 
+# 关键：显式暴露8000端口（解决Back4app的端口检测错误）
+EXPOSE 8000
+
 # 复制依赖文件并安装（先复制requirements.txt能利用Docker缓存）
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
