@@ -1,8 +1,11 @@
 import os
 import uvicorn
 import random
+import traceback
+import mimetypes  # 新增：用于自动识别文件媒体类型
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, HTTPException  # 新增 HTTPException
+from fastapi.responses import FileResponse  # 新增 FileResponse
 from pydantic import BaseModel  # 导入 BaseModel
 
 app = FastAPI()
@@ -51,9 +54,46 @@ async def create_upload_file(file: UploadFile):
     # 4. 读取文件内容并写入指定路径
     contents = await file.read()
     with open(file_path, "wb") as f:
-        f.write(contents)  # 仅写入文件内容，而非路径+内容
-    
+        f.write(contents)  # 仅写入文件内容，而非路径+内容  
     return {"filename": file.filename, "save_path": file_path}
+
+@app.get("/download")  # 支持动态下载 upload_files 目录下的文件
+async def download(filename: str):  # 新增文件名参数，按需下载指定文件
+    # 1. 定义文件存储根目录（和上传接口保持一致）
+    target_dir = "./upload_files"
+    # 2. 拼接目标文件的完整路径
+    file_path = os.path.join(target_dir, filename)
+    
+    try:
+        # 检查文件是否存在
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail=f"文件 {filename} 不存在")
+        # 检查是否是文件（而非目录）
+        if not os.path.isfile(file_path):
+            raise HTTPException(status_code=400, detail=f"{filename} 不是有效文件")
+        
+        # 自动识别文件的媒体类型（替代硬编码）
+        media_type, _ = mimetypes.guess_type(file_path)
+        # 兜底：如果无法识别类型，按二进制流处理
+        if media_type is None:
+            media_type = "application/octet-stream"
+        
+        # 返回文件响应
+        return FileResponse(
+            path=file_path,
+            filename=filename,  # 下载时显示的文件名（和请求的文件名一致）
+            media_type=media_type
+        )
+    except PermissionError:
+        raise HTTPException(status_code=403, detail=f"无权限读取文件 {filename}")
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"下载失败：{str(e)}")
+
+# 兼容原有需求：如需保留固定下载 AAA.png 的接口，可新增以下路由（可选）
+@app.get("/download/aaa")
+async def download_aaa():
+    return await download("AAA.png")
 
 # if __name__ == "__main__":
 #     uvicorn.run(app, host="0.0.0.0", port=8000)  # 端口设为8000
