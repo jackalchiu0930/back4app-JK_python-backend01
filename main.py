@@ -58,11 +58,9 @@ async def create_upload_file(file: UploadFile):
     return {"filename": file.filename, "save_path": file_path}
 
 @app.get("/download")  # 支持动态下载 upload_files 目录下的文件
-async def download(filename: str):  # 新增文件名参数，按需下载指定文件
+async def download():  # 新增文件名参数，按需下载指定文件
     # 1. 定义文件存储根目录（和上传接口保持一致）
-    target_dir = "./upload_files"
-    # 2. 拼接目标文件的完整路径
-    file_path = os.path.join(target_dir, filename)
+    file_path = "./upload_files/AAA.png"
     
     try:
         # 检查文件是否存在
@@ -81,8 +79,8 @@ async def download(filename: str):  # 新增文件名参数，按需下载指定
         # 返回文件响应
         return FileResponse(
             path=file_path,
-            filename=filename,  # 下载时显示的文件名（和请求的文件名一致）
-            media_type=media_type
+            filename="AAA.png",  # 下载时显示的文件名（和请求的文件名一致）
+            media_type="image/png"
         )
     except PermissionError:
         raise HTTPException(status_code=403, detail=f"无权限读取文件 {filename}")
